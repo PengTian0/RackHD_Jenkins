@@ -6,12 +6,14 @@ set -x
 
 sync_files(){
     local files_number=0
-    files_number=$(rsync "$@" |awk '/Number of regular files transferred/{print $NF}')
+    rm -rf rsync_log
+    rsync "$@" 2>&1|tee rsync_log
+    files_number=$(cat rsync_log |awk '/Number of regular files transferred/{print $NF}')
     echo "$files_number"
 }
 
 #start to pull jobs in jenkins server to jump server
-opt="-ravzh --stats --exclude=\"Maglev-BRI-Test/*\" --exclude=\"sandbox/*\""
+opt="-ravzh --stats --exclude Maglev-BRI-Test --exclude sandbox"
 
 #current jobs in jenkins server
 source1=${JENKINS_JOBS-jenkins@rackhdci.lss.emc.com:/var/lib/jenkins/jobs/}
@@ -33,11 +35,11 @@ cloud_host=${CLOUD_HOST-root@147.178.202.18}
 cloud_jobs=${CLOUD_JOBS-jenkins@147.178.202.18:/var/lib/jenkins/jobs}
 dest="${dest}/"
 
-files_transfered=$(sync_files $opt $dest $cloud_jobs)
-files_transfered=$((files_transfered+0))
+sync_files $opt $dest $cloud_jobs
+
 
 #if any file is transfered to cloud, the jenkins service should be force reload
-if [ "$files_transfered" -gt 0 ];
-then
-    ssh $cloud_host "service jenkins force-reload"
-fi
+#if [ "$files_transfered" -gt 0 ];
+#then
+#    ssh $cloud_host "service jenkins force-reload"
+#fi
